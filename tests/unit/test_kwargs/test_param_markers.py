@@ -1,0 +1,262 @@
+from typing import Annotated, Any
+
+import pytest
+
+from litestar import Litestar, get
+from litestar.exceptions.base_exceptions import LitestarDeprecationWarning
+from litestar.params import (
+    CookieParameter,
+    FromCookies,
+    FromHeaders,
+    FromPath,
+    FromQuery,
+    HeaderParameter,
+    Parameter,
+    ParameterKwarg,
+    PathParameter,
+    QueryParameter,
+)
+from litestar.testing import create_test_client
+
+
+def test_simple_form_handler() -> None:
+    @get("/{path_param:int}")
+    def handler(
+        path_param: FromPath[int],
+        query_param: FromQuery[int],
+        header_param: FromHeaders[int],
+        cookie_param: FromCookies[int],
+    ) -> dict[str, int]:
+        return {"query": query_param, "header": header_param, "cookie": cookie_param, "path": path_param}
+
+    with create_test_client([handler], raise_server_exceptions=True) as client:
+        client.cookies.set("cookie_param", "4")
+        res = client.get("/1?query_param=2", headers={"header_param": "3"})
+        assert res.status_code == 200
+        assert res.json() == {"path": 1, "query": 2, "header": 3, "cookie": 4}
+
+
+def test_explicit_form_handler() -> None:
+    @get("/{path_param:int}")
+    def handler(
+        path_param: Annotated[int, PathParameter()],
+        query_param: Annotated[int, QueryParameter()],
+        header_param: Annotated[int, HeaderParameter()],
+        cookie_param: Annotated[int, CookieParameter()],
+    ) -> dict[str, int]:
+        return {"query": query_param, "header": header_param, "cookie": cookie_param, "path": path_param}
+
+    with create_test_client([handler], raise_server_exceptions=True) as client:
+        client.cookies.set("cookie_param", "4")
+        res = client.get("/1?query_param=2", headers={"header_param": "3"})
+        assert res.status_code == 200
+        assert res.json() == {"path": 1, "query": 2, "header": 3, "cookie": 4}
+
+
+def test_explicit_form_with_alias_handler() -> None:
+    @get("/{path_param:int}")
+    def handler(
+        path_p: Annotated[int, PathParameter(name="path_param")],
+        query_p: Annotated[int, QueryParameter(name="query_param")],
+        header_p: Annotated[int, HeaderParameter(name="header_param")],
+        cookie_p: Annotated[int, CookieParameter(name="cookie_param")],
+    ) -> dict[str, int]:
+        return {"query": query_p, "header": header_p, "cookie": cookie_p, "path": path_p}
+
+    with create_test_client([handler], raise_server_exceptions=True) as client:
+        client.cookies.set("cookie_param", "4")
+        res = client.get("/1?query_param=2", headers={"header_param": "3"})
+        assert res.status_code == 200
+        assert res.json() == {"path": 1, "query": 2, "header": 3, "cookie": 4}
+
+
+def test_simple_form_dependency() -> None:
+    async def dependency(
+        path_param: FromPath[int],
+        query_param: FromQuery[int],
+        header_param: FromHeaders[int],
+        cookie_param: FromCookies[int],
+    ) -> dict[str, int]:
+        return {"query": query_param, "header": header_param, "cookie": cookie_param, "path": path_param}
+
+    @get("/{path_param:int}", dependencies={"dep": dependency})
+    def handler(dep: dict[str, int]) -> dict[str, int]:
+        return dep
+
+    with create_test_client([handler], raise_server_exceptions=True) as client:
+        client.cookies.set("cookie_param", "4")
+        res = client.get("/1?query_param=2", headers={"header_param": "3"})
+        assert res.status_code == 200
+        assert res.json() == {"path": 1, "query": 2, "header": 3, "cookie": 4}
+
+
+def test_explicit_form_dependency() -> None:
+    async def dependency(
+        path_param: Annotated[int, PathParameter()],
+        query_param: Annotated[int, QueryParameter()],
+        header_param: Annotated[int, HeaderParameter()],
+        cookie_param: Annotated[int, CookieParameter()],
+    ) -> dict[str, int]:
+        return {"query": query_param, "header": header_param, "cookie": cookie_param, "path": path_param}
+
+    @get("/{path_param:int}", dependencies={"dep": dependency})
+    def handler(dep: dict[str, int]) -> dict[str, int]:
+        return dep
+
+    with create_test_client([handler], raise_server_exceptions=True) as client:
+        client.cookies.set("cookie_param", "4")
+        res = client.get("/1?query_param=2", headers={"header_param": "3"})
+        assert res.status_code == 200
+        assert res.json() == {"path": 1, "query": 2, "header": 3, "cookie": 4}
+
+
+def test_explicit_form_with_alias_dependency() -> None:
+    async def dependency(
+        path_p: Annotated[int, PathParameter(name="path_param")],
+        query_p: Annotated[int, QueryParameter(name="query_param")],
+        header_p: Annotated[int, HeaderParameter(name="header_param")],
+        cookie_p: Annotated[int, CookieParameter(name="cookie_param")],
+    ) -> dict[str, int]:
+        return {"query": query_p, "header": header_p, "cookie": cookie_p, "path": path_p}
+
+    @get("/{path_param:int}", dependencies={"dep": dependency})
+    def handler(dep: dict[str, int]) -> dict[str, int]:
+        return dep
+
+    with create_test_client([handler], raise_server_exceptions=True) as client:
+        client.cookies.set("cookie_param", "4")
+        res = client.get("/1?query_param=2", headers={"header_param": "3"})
+        assert res.status_code == 200
+        assert res.json() == {"path": 1, "query": 2, "header": 3, "cookie": 4}
+
+
+@pytest.mark.parametrize(
+    "default,type_",
+    [
+        (Parameter(query="query"), "query"),
+        (Parameter(header="header"), "header"),
+        (Parameter(cookie="cookie"), "cookie"),
+    ],
+)
+def test_deprecated_default_style_handler(default: ParameterKwarg, type_: str) -> None:
+    @get("/")
+    def handler(some_param: str = default) -> None:  # type: ignore[assignment]
+        pass
+
+    with pytest.warns(
+        LitestarDeprecationWarning,
+        match=f"{type_} parameter 'some_param' declared using deprecated default 'param: <type>",
+    ):
+        Litestar([handler])
+
+
+@pytest.mark.parametrize(
+    "default,type_",
+    [
+        (Parameter(query="query"), "query"),
+        (Parameter(header="header"), "header"),
+        (Parameter(cookie="cookie"), "cookie"),
+    ],
+)
+def test_deprecated_default_style_dependency(default: ParameterKwarg, type_: str) -> None:
+    def dependency(some_param: str = default) -> None:  # type: ignore[assignment]
+        pass
+
+    @get("/", dependencies={"some_dependency": dependency})
+    def handler(some_dependency: None) -> None:
+        pass
+
+    with pytest.warns(
+        LitestarDeprecationWarning,
+        match=f"{type_} parameter 'some_param' declared using deprecated default 'param: <type>",
+    ):
+        Litestar([handler])
+
+
+@pytest.mark.parametrize(
+    "annotation,type_",
+    [
+        (Annotated[str, Parameter(query="query")], "query"),
+        (Annotated[str, Parameter(header="header")], "header"),
+        (Annotated[str, Parameter(cookie="cookie")], "cookie"),
+    ],
+)
+def test_deprecated_annotated_style_handler(annotation: Any, type_: str) -> None:
+    @get("/")
+    def handler(some_param: annotation) -> None:
+        pass
+
+    with pytest.warns(
+        LitestarDeprecationWarning,
+        match=f"{type_} parameter 'some_param' declared using deprecated annotated 'param: Annotated",
+    ):
+        Litestar([handler])
+
+
+@pytest.mark.parametrize(
+    "annotation,type_",
+    [
+        (Annotated[str, Parameter(query="query")], "query"),
+        (Annotated[str, Parameter(header="header")], "header"),
+        (Annotated[str, Parameter(cookie="cookie")], "cookie"),
+    ],
+)
+def test_deprecated_annotated_style_dependency(annotation: Any, type_: str) -> None:
+    def dependency(some_param: annotation) -> None:
+        pass
+
+    @get("/", dependencies={"some_dependency": dependency})
+    def handler(some_dependency: None) -> None:
+        return None
+
+    with pytest.warns(
+        LitestarDeprecationWarning,
+        match=f"{type_} parameter 'some_param' declared using deprecated annotated 'param: Annotated",
+    ):
+        Litestar([handler])
+
+
+def test_deprecated_implicit_style_handler() -> None:
+    @get("/query")
+    def query_handler(query_param: str) -> None:
+        pass
+
+    @get("/{path_param:str}")
+    def path_handler(path_param: str) -> None:
+        pass
+
+    with pytest.warns(
+        LitestarDeprecationWarning, match="query parameter 'query_param' declared using deprecated inferred"
+    ):
+        Litestar([query_handler])
+
+    with pytest.warns(
+        LitestarDeprecationWarning, match="path parameter 'path_param' declared using deprecated inferred"
+    ):
+        Litestar([path_handler])
+
+
+def test_deprecated_implicit_style_dependency() -> None:
+    def query_dependency(query_param: str) -> None:
+        pass
+
+    def path_dependency(path_param: str) -> None:
+        pass
+
+    @get("/query", dependencies={"query_d": query_dependency})
+    def query_handler(query_d: None) -> None:
+        pass
+
+    @get("/{path_param:str}", dependencies={"path_d": path_dependency})
+    def path_handler(path_d: None) -> None:
+        pass
+
+    with pytest.warns(
+        LitestarDeprecationWarning, match="query parameter 'query_param' declared using deprecated inferred"
+    ):
+        Litestar([query_handler])
+
+    with pytest.warns(
+        LitestarDeprecationWarning, match="path parameter 'path_param' declared using deprecated inferred"
+    ):
+        Litestar([path_handler])

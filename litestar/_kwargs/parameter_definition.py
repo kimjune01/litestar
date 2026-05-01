@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Annotated, Any, NamedTuple
 
 from litestar.enums import ParamType
 from litestar.params import ParameterKwarg
@@ -20,6 +20,7 @@ class ParameterDefinition(NamedTuple):
     is_required: bool
     is_sequence: bool
     param_type: ParamType
+    legacy_style: str | None = None
 
 
 def create_parameter_definition(
@@ -44,16 +45,19 @@ def create_parameter_definition(
 
     field_alias = kwarg_definition.query if kwarg_definition and kwarg_definition.query else field_name
     param_type = ParamType.QUERY
+    legacy_style: str | None = "inferred"
+
+    if kwarg_definition is not None:
+        param_type = kwarg_definition.param_type
+        field_alias = kwarg_definition.name or field_name
+        if kwarg_definition.header or kwarg_definition.cookie or kwarg_definition.query:
+            legacy_style = "annotated" if Annotated in field_definition.type_wrappers else "default"  # type: ignore[comparison-overlap]
+        else:
+            legacy_style = None
 
     if field_name in path_parameters:
-        field_alias = field_name
+        field_alias = (kwarg_definition.name or field_name) if kwarg_definition is not None else field_name
         param_type = ParamType.PATH
-    elif kwarg_definition and kwarg_definition.header:
-        field_alias = kwarg_definition.header
-        param_type = ParamType.HEADER
-    elif kwarg_definition and kwarg_definition.cookie:
-        field_alias = kwarg_definition.cookie
-        param_type = ParamType.COOKIE
 
     return ParameterDefinition(
         param_type=param_type,
@@ -65,6 +69,7 @@ def create_parameter_definition(
         and not field_definition.is_optional
         and not field_definition.is_any,
         is_sequence=field_definition.is_non_string_sequence,
+        legacy_style=legacy_style,
     )
 
 

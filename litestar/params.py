@@ -1,27 +1,38 @@
 from __future__ import annotations
 
+import warnings
 from dataclasses import asdict, dataclass, field
-from typing import TYPE_CHECKING, Any, Hashable, Sequence
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Hashable, Sequence, TypeAlias, TypeVar
 
-from litestar.enums import RequestEncodingType
+from litestar.enums import ParamType, RequestEncodingType
 from litestar.types import Empty
 
 __all__ = (
     "Body",
     "BodyKwarg",
+    "CookieParameter",
     "Dependency",
     "DependencyKwarg",
+    "FromCookies",
+    "FromHeaders",
+    "FromPath",
+    "FromQuery",
+    "HeaderParameter",
     "KwargDefinition",
     "Parameter",
     "ParameterKwarg",
+    "PathParameter",
+    "QueryParameter",
 )
-
 
 if TYPE_CHECKING:
     from litestar.openapi.spec.example import Example
     from litestar.openapi.spec.external_documentation import (
         ExternalDocumentation,
     )
+
+
+T = TypeVar("T")
 
 
 @dataclass(frozen=True)
@@ -157,14 +168,21 @@ class KwargDefinition:
 class ParameterKwarg(KwargDefinition):
     """Data container representing a parameter."""
 
+    param_type: ClassVar[ParamType] = ParamType.QUERY
+
+    name: str | None = None
+    """
+    Name of the parameter. If 'None', and used in a function annotation, the name
+    will be inferred from the annotated parameter's name.
+    """
     annotation: Any = field(default=Empty)
     """The field value - `Empty` by default."""
     header: str | None = field(default=None)
-    """The header parameter key - required for header parameters."""
+    """The header name - required for header parameters."""
     cookie: str | None = field(default=None)
-    """The cookie parameter key - required for cookie parameters."""
+    """The cookie name - required for cookie parameters."""
     query: str | None = field(default=None)
-    """The query parameter key for this parameter."""
+    """The query parameter name - required for query parameters"""
     required: bool | None = field(default=None)
     """A boolean flag dictating whether this parameter is required.
 
@@ -178,6 +196,54 @@ class ParameterKwarg(KwargDefinition):
             A hash
         """
         return sum(hash(v) for v in asdict(self) if isinstance(v, Hashable))
+
+    def __post_init__(self) -> None:
+        if (header := self.header) is not None:
+            warnings.warn(
+                f"Deprecated 'header' parameter: Parameter(header={header!r}). Use 'HeaderParameter(name={header!r})' instead",
+                stacklevel=2,
+                category=DeprecationWarning,
+            )
+            object.__setattr__(self, "name", header)
+            object.__setattr__(self, "param_type", ParamType.HEADER)
+        if (cookie := self.cookie) is not None:
+            warnings.warn(
+                f"Deprecated 'cookie' parameter: Parameter(cookie={cookie!r}). Use 'CookieParameter(name={cookie!r})' instead",
+                stacklevel=2,
+                category=DeprecationWarning,
+            )
+            object.__setattr__(self, "name", cookie)
+            object.__setattr__(self, "param_type", ParamType.COOKIE)
+        if (query := self.query) is not None:
+            warnings.warn(
+                f"Deprecated 'query' parameter: Parameter(query={query!r}). Use 'QueryParameter(name={query!r})' instead",
+                stacklevel=2,
+                category=DeprecationWarning,
+            )
+            object.__setattr__(self, "name", query)
+            object.__setattr__(self, "param_type", ParamType.QUERY)
+
+
+class QueryParameter(ParameterKwarg):
+    param_type = ParamType.QUERY
+
+
+class HeaderParameter(ParameterKwarg):
+    param_type = ParamType.HEADER
+
+
+class CookieParameter(ParameterKwarg):
+    param_type = ParamType.COOKIE
+
+
+class PathParameter(ParameterKwarg):
+    param_type = ParamType.PATH
+
+
+FromQuery: TypeAlias = Annotated[T, QueryParameter()]
+FromHeaders: TypeAlias = Annotated[T, HeaderParameter()]
+FromCookies: TypeAlias = Annotated[T, CookieParameter()]
+FromPath: TypeAlias = Annotated[T, PathParameter()]
 
 
 def Parameter(

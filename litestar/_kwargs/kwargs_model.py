@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import dataclasses
+import itertools
+import warnings
 from typing import TYPE_CHECKING, Any
 
 from anyio import create_task_group
@@ -32,6 +35,7 @@ from litestar._kwargs.parameter_definition import (
 from litestar.constants import RESERVED_KWARGS
 from litestar.enums import ParamType, RequestEncodingType
 from litestar.exceptions import ImproperlyConfiguredException
+from litestar.exceptions.base_exceptions import LitestarDeprecationWarning
 from litestar.params import BodyKwarg, ParameterKwarg
 from litestar.typing import FieldDefinition
 from litestar.utils.helpers import get_exception_group
@@ -45,9 +49,18 @@ if TYPE_CHECKING:
     from litestar.connection import ASGIConnection
     from litestar.di import Provide
     from litestar.dto import AbstractDTO
+    from litestar.handlers import BaseRouteHandler
     from litestar.utils.signature import ParsedSignature
 
+
 _ExceptionGroup = get_exception_group()
+
+
+@dataclasses.dataclass
+class HandlerContext:
+    handler: str
+    paths: list[str]
+    dependencies: list[str] = dataclasses.field(default_factory=list)
 
 
 class KwargsModel:
@@ -263,6 +276,7 @@ class KwargsModel:
         dependencies: dict[str, Provide],
         path_parameters: set[str],
         layered_parameters: dict[str, FieldDefinition],
+        ctx: BaseRouteHandler | HandlerContext | None = None,
     ) -> KwargsModel:
         """Pre-determine what parameters are required for a given combination of route + route handler. It is executed
         during the application bootstrap process.
@@ -273,6 +287,7 @@ class KwargsModel:
             dependencies: A string keyed dictionary mapping dependency providers.
             path_parameters: Any expected path parameters.
             layered_parameters: A string keyed dictionary of layered parameters.
+            ctx: Route handler / Route handler context
 
         Returns:
             An instance of KwargsModel
@@ -319,6 +334,9 @@ class KwargsModel:
             elif media_type == RequestEncodingType.MESSAGEPACK:
                 expected_msgpack_data = data_field_definition
 
+        if ctx is not None and not isinstance(ctx, HandlerContext):
+            ctx = HandlerContext(handler=ctx.name or ctx.handler_name, paths=sorted(ctx.paths))
+
         for dependency in expected_dependencies:
             dependency_kwargs_model = cls.create_for_signature_model(
                 signature_model=dependency.provide.signature_model,
@@ -326,7 +344,9 @@ class KwargsModel:
                 dependencies=dependencies,
                 path_parameters=path_parameters,
                 layered_parameters=layered_parameters,
+                ctx=dataclasses.replace(ctx, dependencies=[*ctx.dependencies, dependency.key]) if ctx else None,
             )
+
             expected_path_parameters = merge_parameter_sets(
                 expected_path_parameters, dependency_kwargs_model.expected_path_params
             )
@@ -354,6 +374,18 @@ class KwargsModel:
             if "data" in expected_reserved_kwargs and "data" in field_definitions
             else False
         )
+
+        for param in itertools.chain(
+            expected_path_parameters, expected_header_parameters, expected_query_parameters, expected_cookie_parameters
+        ):
+            if legacy_style := param.legacy_style:
+                _warn_deprecated_param_style(
+                    style=legacy_style,
+                    param_type=param.param_type,
+                    field_name=param.field_name,
+                    stacklevel=3,
+                    ctx=ctx,
+                )
 
         return KwargsModel(
             expected_cookie_params=expected_cookie_parameters,
@@ -484,3 +516,51 @@ class KwargsModel:
                 f"Reserved kwargs ({', '.join(RESERVED_KWARGS)}) cannot be used for dependencies and parameter arguments. "
                 f"The following kwargs have been used: {', '.join(used_reserved_kwargs)}"
             )
+
+
+def _warn_deprecated_param_style(
+    *,
+    style: str,
+    param_type: ParamType,
+    field_name: str,
+    stacklevel: int = 2,
+    ctx: HandlerContext | None,
+) -> None:
+    alternatives = {
+        ParamType.QUERY: "FromQuery",
+        ParamType.HEADER: "FromHeaders",
+        ParamType.COOKIE: "FromCookies",
+        ParamType.PATH: "FromPath",
+    }
+    short_alternative = alternatives[param_type]
+    if style == "inferred":
+        msg = (
+            f"{param_type} parameter {field_name!r} declared using deprecated inferred "
+            f"style. Use '{short_alternative}[<type>]' or "
+            f"'Annotated[<type>, {param_type.title()}Parameter(...)]' instead"
+        )
+    elif style == "default":
+        msg = (
+            f"{param_type} parameter {field_name!r} declared using deprecated default "
+            f"'param: <type> = Parameter(...)' style. Use '{short_alternative}[<type>]' "
+            f"or 'Annotated[<type>, {param_type.title()}Parameter(...)]' instead"
+        )
+    elif style == "annotated":
+        msg = (
+            f"{param_type} parameter {field_name!r} declared using deprecated annotated "
+            f"'param: Annotated[<type>, Parameter(...)]' style. Use "
+            f"'{short_alternative}[<type>]' or "
+            f"'Annotated[<type>, {param_type.title()}Param(...)]' instead"
+        )
+    else:
+        raise ValueError(f"Unknown style {style!r}")
+
+    if ctx is not None:
+        paths = ",".join(sorted(ctx.paths))
+        out = f"[paths={paths!r}, handler={ctx.handler!r}"
+        if ctx.dependencies:
+            out += f", dependencies={' -> '.join(ctx.dependencies[::-1])!r}"
+        out += f"] {msg}"
+        msg = out
+
+    warnings.warn(msg, category=LitestarDeprecationWarning, stacklevel=stacklevel)
