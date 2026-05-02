@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 from litestar.exceptions import ImproperlyConfiguredException
 from litestar.file_system import BaseLocalFileSystem
 from litestar.handlers import asgi, get, head
+from litestar.params import FromPath
 from litestar.response.file import ASGIFileResponse  # noqa: TC001
 from litestar.router import Router
 from litestar.static_files.base import StaticFiles
@@ -175,11 +176,11 @@ def create_static_files_router(
     )
 
     @get("{file_path:path}", name=name)
-    async def get_handler(file_path: PurePath) -> ASGIFileResponse:
+    async def get_handler(file_path: FromPath[PurePath]) -> ASGIFileResponse:
         return await static_files.handle(path=file_path.as_posix(), is_head_response=False)
 
     @head("/{file_path:path}", name=f"{name}/head")
-    async def head_handler(file_path: PurePath) -> ASGIFileResponse:
+    async def head_handler(file_path: FromPath[PurePath]) -> ASGIFileResponse:
         return await static_files.handle(path=file_path.as_posix(), is_head_response=True)
 
     handlers = [get_handler, head_handler]
