@@ -17,7 +17,7 @@ from litestar.handlers import HTTPRouteHandler
 from litestar.openapi import OpenAPIConfig
 from litestar.openapi.spec import Example, OpenAPI, Reference, Schema
 from litestar.openapi.spec.enums import OpenAPIType
-from litestar.params import Dependency, Parameter
+from litestar.params import Dependency, FromCookies, FromHeaders, FromQuery, Parameter, PathParameter, QueryParameter
 from litestar.routes import BaseRoute
 from litestar.testing import create_test_client
 from litestar.utils import find_index
@@ -51,7 +51,7 @@ def test_create_parameters(person_controller: Type[Controller]) -> None:
 
     parameters = _create_parameters(app=Litestar(route_handlers=[person_controller]), path="/{service_id}/person")
     assert len(parameters) == 10
-    service_id, page, name, page_size, from_date, to_date, gender, lucky_number, secret_header, cookie_value = tuple(
+    service_id, page, name, lucky_number, secret_header, cookie_value, gender, page_size, from_date, to_date = tuple(
         parameters
     )
 
@@ -111,7 +111,7 @@ def test_create_parameters(person_controller: Type[Controller]) -> None:
             Schema(
                 type=OpenAPIType.ARRAY,
                 items=Reference(ref="#/components/schemas/tests_unit_test_openapi_utils_Gender"),
-                examples=[[Gender.FEMALE]],
+                examples=[[Gender.MALE]],
             ),
             Schema(type=OpenAPIType.NULL),
         ],
@@ -245,7 +245,7 @@ def test_layered_parameters() -> None:
             router2: float,
             app1: str,
             app2: List[str],
-            controller2: float = Parameter(float, ge=5.0),
+            controller2: Annotated[float, QueryParameter(ge=5.0)],
         ) -> dict:
             return {}
 
@@ -319,7 +319,7 @@ def test_layered_parameters() -> None:
 def test_parameter_examples() -> None:
     @get(path="/")
     async def index(
-        text: Annotated[str, Parameter(examples=[Example(value="example value", summary="example summary")])],
+        text: Annotated[str, QueryParameter(examples=[Example(value="example value", summary="example summary")])],
     ) -> str:
         return text
 
@@ -337,7 +337,7 @@ def test_parameter_schema_extra() -> None:
     async def handler(
         query1: Annotated[
             str,
-            Parameter(
+            QueryParameter(
                 schema_extra={
                     "schema_not": Schema(
                         any_of=[
@@ -350,14 +350,14 @@ def test_parameter_schema_extra() -> None:
         ],
         query2: Annotated[
             Gender,
-            Parameter(description="gender description", schema_extra={"format": "foo"}, schema_component_key="q2"),
+            QueryParameter(description="gender description", schema_extra={"format": "foo"}, schema_component_key="q2"),
         ],
-        query3: Annotated[Gender, Parameter(schema_extra={"format": "bar"}, schema_component_key="q3")],
+        query3: Annotated[Gender, QueryParameter(schema_extra={"format": "bar"}, schema_component_key="q3")],
     ) -> Any:
         return query1
 
     @get()
-    async def error_handler(query1: Annotated[str, Parameter(schema_extra={"invalid": "dummy"})]) -> Any:
+    async def error_handler(query1: Annotated[str, QueryParameter(schema_extra={"invalid": "dummy"})]) -> Any:
         return query1
 
     # Success
@@ -386,11 +386,11 @@ def test_parameter_schema_extra() -> None:
 def test_uuid_path_description_generation() -> None:
     # https://github.com/litestar-org/litestar/issues/2967
     @get("str/{id:str}")
-    async def str_path(id: Annotated[str, Parameter(description="String ID")]) -> str:
+    async def str_path(id: Annotated[str, PathParameter(description="String ID")]) -> str:
         return id
 
     @get("uuid/{id:uuid}")
-    async def uuid_path(id: Annotated[UUID, Parameter(description="UUID ID")]) -> UUID:
+    async def uuid_path(id: Annotated[UUID, PathParameter(description="UUID ID")]) -> UUID:
         return id
 
     with create_test_client(
@@ -464,8 +464,8 @@ def test_query_param_only_properties() -> None:
     def handler(
         path_param: str,
         query_param: str,
-        header_param: Annotated[str, Parameter(header="header_param")],
-        cookie_param: Annotated[str, Parameter(cookie="cookie_param")],
+        header_param: FromHeaders[str],
+        cookie_param: FromCookies[str],
     ) -> None:
         pass
 
@@ -490,7 +490,7 @@ def test_query_param_only_properties() -> None:
 
 def test_not_included_in_schema_parameter() -> None:
     @get("/handler")
-    async def handler(param: Annotated[str, Parameter(include_in_schema=False)]) -> None:
+    async def handler(param: Annotated[str, QueryParameter(include_in_schema=False)]) -> None:
         pass
 
     with create_test_client(handler) as client:
@@ -503,7 +503,7 @@ def test_not_included_in_schema_parameter() -> None:
 
 def test_two_parameters_but_one_not_included_in_schema() -> None:
     @get("/handler")
-    def handler(param1: str, param2: str = Parameter(include_in_schema=False)) -> None:
+    def handler(param1: FromQuery[str], param2: Annotated[str, QueryParameter(include_in_schema=False)]) -> None:
         pass
 
     with create_test_client(handler) as client:

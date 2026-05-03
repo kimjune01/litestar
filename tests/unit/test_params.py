@@ -6,14 +6,14 @@ from typing_extensions import Annotated
 from litestar import Controller, Litestar, MediaType, get, post
 from litestar.di import Provide
 from litestar.exceptions import ImproperlyConfiguredException
-from litestar.params import Body, Dependency, Parameter
+from litestar.params import Body, Dependency, Parameter, QueryParameter
 from litestar.status_codes import HTTP_200_OK, HTTP_201_CREATED, HTTP_400_BAD_REQUEST, HTTP_500_INTERNAL_SERVER_ERROR
 from litestar.testing import TestClient, create_test_client
 
 
 def test_parsing_of_parameter_as_annotated() -> None:
     @get(path="/")
-    def handler(param: Annotated[str, Parameter(min_length=1)]) -> str:
+    def handler(param: Annotated[str, QueryParameter(min_length=1)]) -> str:
         return param
 
     with create_test_client(handler) as client:
@@ -208,7 +208,7 @@ def test_dependency_nested_sequence() -> None:
 def test_regex_validation() -> None:
     # https://github.com/litestar-org/litestar/issues/1860
     @get(path="/val_regex", media_type=MediaType.TEXT)
-    async def regex_val(text: Annotated[str, Parameter(title="a or b", pattern="[a|b]")]) -> str:
+    async def regex_val(text: Annotated[str, QueryParameter(title="a or b", pattern="[a|b]")]) -> str:
         return f"str: {text}"
 
     with create_test_client(route_handlers=[regex_val]) as client:
@@ -228,7 +228,9 @@ def optional_no_default_client_fixture() -> Generator[TestClient, None, None]:
         return {"key": key}
 
     @get("/optional-annotated-no-default")
-    def handle_optional_annotated(param: Annotated[Optional[str], Parameter(query="key")]) -> Dict[str, Optional[str]]:
+    def handle_optional_annotated(
+        param: Annotated[Optional[str], QueryParameter(name="key")],
+    ) -> Dict[str, Optional[str]]:
         return {"key": param}
 
     with create_test_client(route_handlers=[handle_optional, handle_optional_annotated], openapi_config=None) as client:
@@ -266,7 +268,7 @@ def optional_default_client_fixture() -> Generator[TestClient, None, None]:
 
     @get("/optional-annotated-default")
     def handle_default_annotated(
-        param: Annotated[Optional[str], Parameter(query="key")] = None,
+        param: Annotated[Optional[str], QueryParameter(name="key")] = None,
     ) -> Dict[str, Optional[str]]:
         return {"key": param}
 
@@ -298,7 +300,7 @@ def test_optional_query_parameter_consistency_with_default_queried_with_other_pa
 
 def test_not_included_in_schema_param_as_annotated() -> None:
     @get(path="/")
-    def handler(param: Annotated[str, Parameter(include_in_schema=True)]) -> str:
+    def handler(param: Annotated[str, QueryParameter(include_in_schema=True)]) -> str:
         return param
 
     with create_test_client(handler) as client:
@@ -312,7 +314,7 @@ def test_not_included_in_schema_param_as_annotated() -> None:
 
 def test_not_included_in_schema_param_as_default() -> None:
     @get(path="/")
-    def handler(param: str = Parameter(include_in_schema=True)) -> str:
+    def handler(param: Annotated[str, QueryParameter(include_in_schema=True)]) -> str:
         return param
 
     with create_test_client(handler) as client:
@@ -326,7 +328,7 @@ def test_not_included_in_schema_param_as_default() -> None:
 
 def test_not_included_in_schema_param_with_default_value() -> None:
     @get(path="/")
-    def handler(param: str = Parameter(default="b", include_in_schema=True)) -> str:
+    def handler(param: Annotated[str, QueryParameter(default="b", include_in_schema=True)] = "b") -> str:
         return param
 
     with create_test_client(handler) as client:

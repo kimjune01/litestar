@@ -6,10 +6,11 @@ from unittest.mock import MagicMock
 from uuid import UUID, uuid1, uuid4
 
 import pytest
+from typing_extensions import Annotated
 
 from litestar import Litestar, MediaType, get, post
 from litestar.exceptions import ImproperlyConfiguredException
-from litestar.params import Parameter
+from litestar.params import Parameter, PathParameter
 from litestar.status_codes import HTTP_200_OK, HTTP_201_CREATED, HTTP_400_BAD_REQUEST
 from litestar.testing import create_test_client
 
@@ -70,9 +71,9 @@ def test_path_params(params_dict: dict, should_raise: bool) -> None:
     @get(path=test_path)
     def test_method(
         order_id: UUID,
-        version: float = Parameter(gt=0.1, le=4.0),
-        service_id: int = Parameter(gt=0, le=100),
-        user_id: str = Parameter(min_length=1, max_length=10),
+        version: Annotated[float, PathParameter(gt=0.1, le=4.0)],
+        service_id: Annotated[int, PathParameter(gt=0, le=100)],
+        user_id: Annotated[str, PathParameter(min_length=1, max_length=10)],
     ) -> None:
         assert version
         assert service_id

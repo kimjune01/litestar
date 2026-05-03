@@ -1,9 +1,9 @@
-from typing import List
+from typing import Annotated, List
 
 import pytest
 
 from litestar import Controller, Router, get
-from litestar.params import Parameter
+from litestar.params import FromPath, FromQuery, Parameter, QueryParameter
 from litestar.status_codes import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from litestar.testing import create_test_client
 
@@ -126,10 +126,10 @@ def test_layered_parameters_defaults_and_overrides() -> None:
         @get("/{local:int}")
         def my_handler(
             self,
-            local: float,
-            controller1: int,
-            controller2: str = Parameter(str, query="controller4"),
-            app1: str = Parameter(default="moishe"),
+            local: FromPath[int],
+            controller1: FromQuery[int],
+            controller2: Annotated[str, QueryParameter(name="controller4")],
+            app1: FromQuery[str] = "moishe",
         ) -> dict:
             assert app1 == "moishe"
             assert controller2 == "jeronimo"

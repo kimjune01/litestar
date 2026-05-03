@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated, Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
+from typing_extensions import Annotated
 
 from litestar.enums import ParamType
 from litestar.params import ParameterKwarg

@@ -2,13 +2,14 @@ from datetime import date, datetime
 from typing import Any, Dict, List, Optional, Type, Union
 
 import pytest
+from typing_extensions import Annotated
 
 from litestar import Controller, MediaType, delete, get, patch, post, put
 from litestar.datastructures import ResponseHeader, State
 from litestar.dto import DataclassDTO, DTOConfig, DTOData
 from litestar.openapi.controller import OpenAPIController
 from litestar.openapi.spec.example import Example
-from litestar.params import Parameter
+from litestar.params import CookieParameter, HeaderParameter, QueryParameter
 from tests.models import DataclassPerson, DataclassPersonFactory, DataclassPet
 from tests.unit.test_openapi.utils import Gender, LuckyNumber, PetException
 
@@ -35,47 +36,51 @@ def create_person_controller() -> Type[Controller]:
             # required query parameters below
             page: int,
             name: Optional[Union[str, List[str]]],  # intentionally without default
-            page_size: int = Parameter(
-                query="pageSize",
-                description="Page Size Description",
-                title="Page Size Title",
-                examples=[Example(description="example value", value=1)],
-            ),
+            lucky_number: Annotated[Optional[LuckyNumber], QueryParameter(examples=[Example(value=LuckyNumber.SEVEN)])],
+            # header parameter
+            secret_header: Annotated[str, HeaderParameter(name="secret")],
+            # cookie parameter
+            cookie_value: Annotated[int, CookieParameter(name="value")],
+            gender: Annotated[
+                Optional[Union[Gender, List[Gender]]],
+                QueryParameter(examples=[Example(value=Gender.MALE), Example(value=[Gender.MALE, Gender.OTHER])]),
+            ],
+            page_size: Annotated[
+                int,
+                QueryParameter(
+                    name="pageSize",
+                    description="Page Size Description",
+                    title="Page Size Title",
+                    examples=[Example(description="example value", value=1)],
+                ),
+            ],
             # non-required query parameters below
             from_date: Optional[Union[int, datetime, date]] = None,
             to_date: Optional[Union[int, datetime, date]] = None,
-            gender: Optional[Union[Gender, List[Gender]]] = Parameter(
-                examples=[Example(value=Gender.MALE), Example(value=[Gender.MALE, Gender.OTHER])]
-            ),
-            lucky_number: Optional[LuckyNumber] = Parameter(examples=[Example(value=LuckyNumber.SEVEN)]),
-            # header parameter
-            secret_header: str = Parameter(header="secret"),
-            # cookie parameter
-            cookie_value: int = Parameter(cookie="value"),
         ) -> List[DataclassPerson]:
             return []
 
         @post(media_type=MediaType.TEXT, sync_to_thread=False)
         def create_person(
-            self, data: DataclassPerson, secret_header: str = Parameter(header="secret")
+            self, data: DataclassPerson, secret_header: Annotated[str, HeaderParameter(name="secret")]
         ) -> DataclassPerson:
             return data
 
         @post(path="/bulk", dto=PartialDataclassPersonDTO, sync_to_thread=False)
         def bulk_create_person(
-            self, data: DTOData[List[DataclassPerson]], secret_header: str = Parameter(header="secret")
+            self, data: DTOData[List[DataclassPerson]], secret_header: Annotated[str, HeaderParameter(name="secret")]
         ) -> List[DataclassPerson]:
             return []
 
         @put(path="/bulk", sync_to_thread=False)
         def bulk_update_person(
-            self, data: List[DataclassPerson], secret_header: str = Parameter(header="secret")
+            self, data: List[DataclassPerson], secret_header: Annotated[str, HeaderParameter(name="secret")]
         ) -> List[DataclassPerson]:
             return []
 
         @patch(path="/bulk", dto=PartialDataclassPersonDTO, sync_to_thread=False)
         def bulk_partial_update_person(
-            self, data: DTOData[List[DataclassPerson]], secret_header: str = Parameter(header="secret")
+            self, data: DTOData[List[DataclassPerson]], secret_header: Annotated[str, HeaderParameter(name="secret")]
         ) -> List[DataclassPerson]:
             return []
 

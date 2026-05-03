@@ -10,7 +10,7 @@ from typing_extensions import Annotated
 from litestar import get
 from litestar._signature import SignatureModel
 from litestar.dto import DataclassDTO
-from litestar.params import Body, Parameter
+from litestar.params import Body, QueryParameter
 from litestar.status_codes import HTTP_200_OK, HTTP_204_NO_CONTENT
 from litestar.testing import TestClient, create_test_client
 from litestar.types import Empty
@@ -90,7 +90,7 @@ app = Litestar(route_handlers=[hello_world], openapi_config=None)
 @pytest.mark.parametrize(("query", "exp"), [("?a=1&a=2&a=3", [1, 2, 3]), ("", None)])
 def test_parse_optional_sequence_from_connection_kwargs(query: str, exp: Any) -> None:
     @get("/")
-    def test(a: Optional[List[int]] = Parameter(query="a", default=None, required=False)) -> Optional[List[int]]:
+    def test(a: Annotated[Optional[List[int]], QueryParameter(name="a", required=False)] = None) -> Optional[List[int]]:
         return a
 
     with create_test_client(route_handlers=[test]) as client:

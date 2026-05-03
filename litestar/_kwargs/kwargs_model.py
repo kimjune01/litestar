@@ -491,7 +491,7 @@ class KwargsModel:
                 k
                 for k, f in field_definitions.items()
                 if isinstance(f.kwarg_definition, ParameterKwarg)
-                and (f.kwarg_definition.header or f.kwarg_definition.query or f.kwarg_definition.cookie)
+                and (f.kwarg_definition.param_type in (ParamType.HEADER, ParamType.QUERY, ParamType.COOKIE))
             ),
             *list(layered_parameters.keys()),
         }
@@ -533,24 +533,25 @@ def _warn_deprecated_param_style(
         ParamType.PATH: "FromPath",
     }
     short_alternative = alternatives[param_type]
+    param_type_name = param_type.name.lower()
     if style == "inferred":
         msg = (
-            f"{param_type} parameter {field_name!r} declared using deprecated inferred "
+            f"{param_type_name} parameter {field_name!r} declared using deprecated inferred "
             f"style. Use '{short_alternative}[<type>]' or "
             f"'Annotated[<type>, {param_type.title()}Parameter(...)]' instead"
         )
     elif style == "default":
         msg = (
-            f"{param_type} parameter {field_name!r} declared using deprecated default "
+            f"{param_type_name} parameter {field_name!r} declared using deprecated default "
             f"'param: <type> = Parameter(...)' style. Use '{short_alternative}[<type>]' "
-            f"or 'Annotated[<type>, {param_type.title()}Parameter(...)]' instead"
+            f"or 'Annotated[<type>, {param_type_name.title()}Parameter(...)]' instead"
         )
     elif style == "annotated":
         msg = (
-            f"{param_type} parameter {field_name!r} declared using deprecated annotated "
+            f"{param_type_name} parameter {field_name!r} declared using deprecated annotated "
             f"'param: Annotated[<type>, Parameter(...)]' style. Use "
             f"'{short_alternative}[<type>]' or "
-            f"'Annotated[<type>, {param_type.title()}Param(...)]' instead"
+            f"'Annotated[<type>, {param_type_name.title()}Param(...)]' instead"
         )
     else:
         raise ValueError(f"Unknown style {style!r}")

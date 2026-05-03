@@ -10,7 +10,7 @@ from litestar._signature import SignatureModel
 from litestar.di import Provide
 from litestar.enums import ParamType
 from litestar.exceptions import ImproperlyConfiguredException, ValidationException
-from litestar.params import Dependency, Parameter
+from litestar.params import CookieParameter, Dependency, HeaderParameter, PathParameter, QueryParameter
 from litestar.status_codes import HTTP_400_BAD_REQUEST, HTTP_500_INTERNAL_SERVER_ERROR
 from litestar.testing import RequestFactory, create_test_client
 from litestar.utils.signature import ParsedSignature
@@ -80,7 +80,7 @@ def test_validation_failure_raises_400() -> None:
 
 def test_invalid_path_parameter() -> None:
     @get("/{param:int}")
-    def test(param: Annotated[int, Parameter(le=10)]) -> None: ...
+    def test(param: Annotated[int, PathParameter(le=10)]) -> None: ...
 
     with create_test_client(route_handlers=[test]) as client:
         response = client.get("/11")
@@ -168,8 +168,8 @@ def test_invalid_input_attrs() -> None:
     def test(
         data: Parent,
         int_param: int,
-        int_header: int = Parameter(header="X-SOME-INT"),
-        int_cookie: int = Parameter(cookie="int-cookie"),
+        int_header: Annotated[int, HeaderParameter(name="X-SOME-INT")],
+        int_cookie: Annotated[int, CookieParameter(name="int-cookie")],
     ) -> None: ...
 
     with create_test_client(route_handlers=[test]) as client:
@@ -213,9 +213,9 @@ def test_invalid_input_dataclass() -> None:
     def test(
         data: Parent,
         int_param: int,
-        length_param: str = Parameter(min_length=2),
-        int_header: int = Parameter(header="X-SOME-INT"),
-        int_cookie: int = Parameter(cookie="int-cookie"),
+        length_param: Annotated[str, QueryParameter(min_length=2)],
+        int_header: Annotated[int, HeaderParameter(name="X-SOME-INT")],
+        int_cookie: Annotated[int, CookieParameter(name="int-cookie")],
     ) -> None: ...
 
     with create_test_client(route_handlers=[test]) as client:
@@ -257,9 +257,9 @@ def test_invalid_input_typed_dict() -> None:
     def test(
         data: Parent,
         int_param: int,
-        length_param: str = Parameter(min_length=2),
-        int_header: int = Parameter(header="X-SOME-INT"),
-        int_cookie: int = Parameter(cookie="int-cookie"),
+        length_param: Annotated[str, QueryParameter(min_length=2)],
+        int_header: Annotated[int, HeaderParameter(name="X-SOME-INT")],
+        int_cookie: Annotated[int, CookieParameter(name="int-cookie")],
     ) -> None: ...
 
     with create_test_client(route_handlers=[test]) as client:
@@ -286,7 +286,7 @@ def test_invalid_input_typed_dict() -> None:
 
 
 def test_parse_values_from_connection_kwargs_with_multiple_errors() -> None:
-    def fn(a: Annotated[int, Parameter(gt=5)], b: Annotated[int, Parameter(lt=5)]) -> None:
+    def fn(a: Annotated[int, QueryParameter(gt=5)], b: Annotated[int, QueryParameter(lt=5)]) -> None:
         pass
 
     model = SignatureModel.create(

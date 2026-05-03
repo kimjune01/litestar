@@ -17,7 +17,7 @@ from litestar.enums import MediaType, OpenAPIMediaType, ParamType
 from litestar.openapi import OpenAPIConfig, OpenAPIController
 from litestar.openapi.spec import Parameter as OpenAPIParameter
 from litestar.openapi.spec import Schema
-from litestar.params import Parameter
+from litestar.params import FromCookies, HeaderParameter
 from litestar.serialization.msgspec_hooks import decode_json, encode_json, get_serializer
 from litestar.status_codes import HTTP_200_OK, HTTP_404_NOT_FOUND
 from litestar.testing import create_test_client
@@ -381,8 +381,8 @@ def test_allow_multiple_parameters_with_same_name_but_different_location() -> No
 
     @post("/test")
     async def route(
-        name: Annotated[Optional[str], Parameter(cookie="name")] = None,
-        name_header: Annotated[Optional[str], Parameter(header="name")] = None,
+        name: FromCookies[Optional[str]] = None,
+        name_header: Annotated[Optional[str], HeaderParameter(name="name")] = None,
     ) -> str:
         return name or name_header or ""
 

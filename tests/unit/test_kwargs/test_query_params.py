@@ -15,7 +15,7 @@ from typing_extensions import Annotated
 from litestar import MediaType, Request, get, post
 from litestar.datastructures import MultiDict
 from litestar.di import Provide
-from litestar.params import Parameter
+from litestar.params import QueryParameter
 from litestar.status_codes import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from litestar.testing import create_test_client
 
@@ -107,8 +107,8 @@ def test_query_params(params_dict: dict, should_raise: bool) -> None:
     @get(path=test_path)
     def test_method(
         page: int,
-        page_size: int = Parameter(query="pageSize", gt=0, le=100),
-        brands: List[str] = Parameter(min_items=1, max_items=3),
+        page_size: Annotated[int, QueryParameter(name="pageSize", gt=0, le=100)],
+        brands: Annotated[List[str], QueryParameter(min_items=1, max_items=3)],
         from_date: Optional[datetime] = None,
         to_date: Optional[datetime] = None,
     ) -> None:
@@ -211,7 +211,7 @@ def test_query_parsing_of_escaped_values(values: Tuple[Tuple[str, str], Tuple[st
 
 
 def test_query_param_dependency_with_alias() -> None:
-    async def qp_dependency(page_size: int = Parameter(query="pageSize", gt=0, le=100)) -> int:
+    async def qp_dependency(page_size: Annotated[int, QueryParameter(name="pageSize", gt=0, le=100)]) -> int:
         return page_size
 
     @get("/", media_type=MediaType.TEXT)
@@ -227,7 +227,7 @@ def test_query_param_dependency_with_alias() -> None:
 def test_query_params_with_post() -> None:
     # https://github.com/litestar-org/litestar/issues/3734
     @post()
-    async def handler(data: str, secret: Annotated[str, Parameter(query="x-secret")]) -> None:
+    async def handler(data: str, secret: Annotated[str, QueryParameter(name="x-secret")]) -> None:
         return None
 
     with create_test_client([handler], raise_server_exceptions=True) as client:

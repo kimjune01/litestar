@@ -37,7 +37,7 @@ from litestar.openapi.spec.example import Example
 from litestar.openapi.spec.parameter import Parameter as OpenAPIParameter
 from litestar.openapi.spec.schema import Schema
 from litestar.pagination import ClassicPagination, CursorPagination, OffsetPagination
-from litestar.params import KwargDefinition, Parameter, ParameterKwarg
+from litestar.params import HeaderParameter, KwargDefinition, Parameter, ParameterKwarg, PathParameter, QueryParameter
 from litestar.testing import create_test_client
 from litestar.typing import FieldDefinition
 from litestar.utils.helpers import get_name
@@ -154,7 +154,9 @@ def test_dependency_schema_generation() -> None:
     async def top_dependency(query_param: int) -> int:
         return query_param
 
-    async def mid_level_dependency(header_param: str = Parameter(header="header_param", required=False)) -> int:
+    async def mid_level_dependency(
+        header_param: Annotated[str, HeaderParameter(name="header_param", required=False)],
+    ) -> int:
         return 5
 
     async def local_dependency(path_param: int, mid_level: int, top_level: int) -> int:
@@ -694,10 +696,10 @@ def test_unconsumed_path_parameters_are_documented() -> None:
     # https://github.com/litestar-org/litestar/issues/3290
     # https://github.com/litestar-org/litestar/issues/3369
 
-    async def dd(param3: Annotated[str, Parameter(description="123")]) -> str:
+    async def dd(param3: Annotated[str, PathParameter(description="123")]) -> str:
         return param3
 
-    async def d(dep_dep: str, param2: Annotated[str, Parameter(description="abc")]) -> str:
+    async def d(dep_dep: str, param2: Annotated[str, PathParameter(description="abc")]) -> str:
         return f"{dep_dep}_{param2}"
 
     @get("/{param1:str}/{param2:str}/{param3:str}", dependencies={"dep": d, "dep_dep": dd})
@@ -717,7 +719,7 @@ def test_unconsumed_path_parameters_are_documented() -> None:
 
 def test_type_alias_type() -> None:
     @get("/")
-    def handler(query_param: Annotated[TypeAliasType("IntAlias", int), Parameter(description="foo")]) -> None:  # type: ignore[valid-type]
+    def handler(query_param: Annotated[TypeAliasType("IntAlias", int), QueryParameter(description="foo")]) -> None:  # type: ignore[valid-type]
         pass
 
     app = Litestar([handler])
@@ -734,7 +736,7 @@ def test_type_alias_type_keyword() -> None:
     annotation = ctx["IntAlias"]
 
     @get("/")
-    def handler(query_param: Annotated[annotation, Parameter(description="foo")]) -> None:  # type: ignore[valid-type]
+    def handler(query_param: Annotated[annotation, QueryParameter(description="foo")]) -> None:  # type: ignore[valid-type]
         pass
 
     app = Litestar([handler])

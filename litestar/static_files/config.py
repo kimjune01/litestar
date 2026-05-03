@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Any, Sequence
 from litestar.exceptions import ImproperlyConfiguredException
 from litestar.file_system import BaseLocalFileSystem
 from litestar.handlers import asgi, get, head
-from litestar.params import FromPath
 from litestar.response.file import ASGIFileResponse  # noqa: TC001
 from litestar.router import Router
 from litestar.static_files.base import StaticFiles
@@ -19,6 +18,7 @@ if TYPE_CHECKING:
     from litestar.datastructures import CacheControlHeader
     from litestar.handlers.asgi_handlers import ASGIRouteHandler
     from litestar.openapi.spec import SecurityRequirement
+    from litestar.params import FromPath
     from litestar.types import (
         AfterRequestHookHandler,
         AfterResponseHookHandler,

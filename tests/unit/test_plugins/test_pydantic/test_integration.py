@@ -9,7 +9,7 @@ from typing_extensions import Annotated
 
 from litestar import get, post
 from litestar.enums import RequestEncodingType
-from litestar.params import Body, Parameter
+from litestar.params import Body, CookieParameter, HeaderParameter, QueryParameter
 from litestar.plugins.pydantic import PydanticDTO, PydanticInitPlugin, PydanticPlugin
 from litestar.status_codes import HTTP_400_BAD_REQUEST
 from litestar.testing import create_test_client
@@ -162,9 +162,9 @@ def test_signature_model_invalid_input(base_model: BaseModelType, pydantic_versi
     def test(
         data: Parent,
         int_param: int,
-        length_param: str = Parameter(min_length=2),
-        int_header: int = Parameter(header="X-SOME-INT"),
-        int_cookie: int = Parameter(cookie="int-cookie"),
+        length_param: Annotated[str, QueryParameter(min_length=2)],
+        int_header: Annotated[int, HeaderParameter(name="X-SOME-INT")],
+        int_cookie: Annotated[int, CookieParameter(name="int-cookie")],
     ) -> None: ...
 
     with create_test_client(route_handlers=[test], signature_types=[Parent]) as client:

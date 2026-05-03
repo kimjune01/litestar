@@ -1,9 +1,13 @@
-from typing import Annotated, Any
+import dataclasses
+from typing import Any, Dict
 
 import pytest
+from typing_extensions import Annotated
 
 from litestar import Litestar, get
+from litestar.enums import ParamType
 from litestar.exceptions.base_exceptions import LitestarDeprecationWarning
+from litestar.openapi.spec import Parameter as OpenAPIParameter
 from litestar.params import (
     CookieParameter,
     FromCookies,
@@ -16,7 +20,7 @@ from litestar.params import (
     PathParameter,
     QueryParameter,
 )
-from litestar.testing import create_test_client
+from litestar.testing import TestClient, create_test_client
 
 
 def test_simple_form_handler() -> None:
@@ -26,7 +30,7 @@ def test_simple_form_handler() -> None:
         query_param: FromQuery[int],
         header_param: FromHeaders[int],
         cookie_param: FromCookies[int],
-    ) -> dict[str, int]:
+    ) -> Dict[str, int]:
         return {"query": query_param, "header": header_param, "cookie": cookie_param, "path": path_param}
 
     with create_test_client([handler], raise_server_exceptions=True) as client:
@@ -43,7 +47,7 @@ def test_explicit_form_handler() -> None:
         query_param: Annotated[int, QueryParameter()],
         header_param: Annotated[int, HeaderParameter()],
         cookie_param: Annotated[int, CookieParameter()],
-    ) -> dict[str, int]:
+    ) -> Dict[str, int]:
         return {"query": query_param, "header": header_param, "cookie": cookie_param, "path": path_param}
 
     with create_test_client([handler], raise_server_exceptions=True) as client:
@@ -60,10 +64,20 @@ def test_explicit_form_with_alias_handler() -> None:
         query_p: Annotated[int, QueryParameter(name="query_param")],
         header_p: Annotated[int, HeaderParameter(name="header_param")],
         cookie_p: Annotated[int, CookieParameter(name="cookie_param")],
-    ) -> dict[str, int]:
+    ) -> Dict[str, int]:
         return {"query": query_p, "header": header_p, "cookie": cookie_p, "path": path_p}
 
-    with create_test_client([handler], raise_server_exceptions=True) as client:
+    app = Litestar([handler])
+    schema_params = app.openapi_schema.paths["/{path_param}"].get.parameters
+
+    assert sorted([dataclasses.replace(p, schema=None) for p in schema_params], key=lambda p: p.name) == [
+        OpenAPIParameter(name="cookie_param", param_in=ParamType.COOKIE, required=True),
+        OpenAPIParameter(name="header_param", param_in=ParamType.HEADER, required=True),
+        OpenAPIParameter(name="path_param", param_in=ParamType.PATH, required=True),
+        OpenAPIParameter(name="query_param", param_in=ParamType.QUERY, required=True),
+    ]
+
+    with TestClient(app, raise_server_exceptions=True) as client:
         client.cookies.set("cookie_param", "4")
         res = client.get("/1?query_param=2", headers={"header_param": "3"})
         assert res.status_code == 200
@@ -76,11 +90,11 @@ def test_simple_form_dependency() -> None:
         query_param: FromQuery[int],
         header_param: FromHeaders[int],
         cookie_param: FromCookies[int],
-    ) -> dict[str, int]:
+    ) -> Dict[str, int]:
         return {"query": query_param, "header": header_param, "cookie": cookie_param, "path": path_param}
 
     @get("/{path_param:int}", dependencies={"dep": dependency})
-    def handler(dep: dict[str, int]) -> dict[str, int]:
+    def handler(dep: Dict[str, int]) -> Dict[str, int]:
         return dep
 
     with create_test_client([handler], raise_server_exceptions=True) as client:
@@ -96,11 +110,11 @@ def test_explicit_form_dependency() -> None:
         query_param: Annotated[int, QueryParameter()],
         header_param: Annotated[int, HeaderParameter()],
         cookie_param: Annotated[int, CookieParameter()],
-    ) -> dict[str, int]:
+    ) -> Dict[str, int]:
         return {"query": query_param, "header": header_param, "cookie": cookie_param, "path": path_param}
 
     @get("/{path_param:int}", dependencies={"dep": dependency})
-    def handler(dep: dict[str, int]) -> dict[str, int]:
+    def handler(dep: Dict[str, int]) -> Dict[str, int]:
         return dep
 
     with create_test_client([handler], raise_server_exceptions=True) as client:
@@ -116,14 +130,24 @@ def test_explicit_form_with_alias_dependency() -> None:
         query_p: Annotated[int, QueryParameter(name="query_param")],
         header_p: Annotated[int, HeaderParameter(name="header_param")],
         cookie_p: Annotated[int, CookieParameter(name="cookie_param")],
-    ) -> dict[str, int]:
+    ) -> Dict[str, int]:
         return {"query": query_p, "header": header_p, "cookie": cookie_p, "path": path_p}
 
     @get("/{path_param:int}", dependencies={"dep": dependency})
-    def handler(dep: dict[str, int]) -> dict[str, int]:
+    def handler(dep: Dict[str, int]) -> Dict[str, int]:
         return dep
 
-    with create_test_client([handler], raise_server_exceptions=True) as client:
+    app = Litestar([handler])
+    schema_params = app.openapi_schema.paths["/{path_param}"].get.parameters
+
+    assert sorted([dataclasses.replace(p, schema=None) for p in schema_params], key=lambda p: p.name) == [
+        OpenAPIParameter(name="cookie_param", param_in=ParamType.COOKIE, required=True),
+        OpenAPIParameter(name="header_param", param_in=ParamType.HEADER, required=True),
+        OpenAPIParameter(name="path_param", param_in=ParamType.PATH, required=True),
+        OpenAPIParameter(name="query_param", param_in=ParamType.QUERY, required=True),
+    ]
+
+    with TestClient(app, raise_server_exceptions=True) as client:
         client.cookies.set("cookie_param", "4")
         res = client.get("/1?query_param=2", headers={"header_param": "3"})
         assert res.status_code == 200

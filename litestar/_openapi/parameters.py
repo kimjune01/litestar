@@ -115,18 +115,16 @@ class ParameterFactory:
             param_in = ParamType.PATH
             is_required = True
             result = self.schema_creator.for_field_definition(field_definition)
-        elif kwarg_definition and kwarg_definition.header:
-            parameter_name = kwarg_definition.header
-            param_in = ParamType.HEADER
+        elif kwarg_definition is not None:
+            param_in = kwarg_definition.param_type
             is_required = field_definition.is_required
-        elif kwarg_definition and kwarg_definition.cookie:
-            parameter_name = kwarg_definition.cookie
-            param_in = ParamType.COOKIE
-            is_required = field_definition.is_required
+            parameter_name = kwarg_definition.name or parameter_name
+            if param_in == ParamType.PATH:
+                is_required = True
+                result = self.schema_creator.for_field_definition(field_definition)
         else:
             is_required = field_definition.is_required
             param_in = ParamType.QUERY
-            parameter_name = kwarg_definition.query if kwarg_definition and kwarg_definition.query else parameter_name
 
         if not result:
             result = self.schema_creator.for_field_definition(field_definition)
@@ -160,12 +158,7 @@ class ParameterFactory:
 
         parameter_name = field_name
         if isinstance(field.kwarg_definition, ParameterKwarg):
-            parameter_name = (
-                field.kwarg_definition.query
-                or field.kwarg_definition.header
-                or field.kwarg_definition.cookie
-                or field_name
-            )
+            parameter_name = field.kwarg_definition.name or field_name
 
         field_definition = FieldDefinition.from_kwarg(
             inner_types=field.inner_types,
