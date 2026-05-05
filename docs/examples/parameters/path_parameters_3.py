@@ -4,7 +4,7 @@ from typing_extensions import Annotated
 from litestar import Litestar, get
 from litestar.openapi.spec.example import Example
 from litestar.openapi.spec.external_documentation import ExternalDocumentation
-from litestar.params import Parameter
+from litestar.params import PathParameter
 
 
 class Version(BaseModel):
@@ -19,7 +19,7 @@ VERSIONS = {1: Version(id=1, specs='{"some": "value"}')}
 def get_product_version(
     version: Annotated[
         int,
-        Parameter(
+        PathParameter(
             ge=1,
             le=10,
             title="Available Product Versions",
