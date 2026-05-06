@@ -231,6 +231,15 @@ class FieldDefinition:
         return isinstance(self.kwarg_definition, ParameterKwarg)
 
     @property
+    def is_non_marker_parameter_field(self) -> bool:
+        """Check if the field type is a ParameterKwarg that's not a marker only.
+
+        A marker is considered an instance of 'ParameterKwarg' without any constraints
+        applied, usually produced by 'FromQuery[]', 'FromPath[]', etc.
+        """
+        return isinstance(self.kwarg_definition, ParameterKwarg) and not self.kwarg_definition.is_marker
+
+    @property
     def is_const(self) -> bool:
         """Check if the field is defined as constant value."""
         return bool(self.kwarg_definition and getattr(self.kwarg_definition, "const", False))

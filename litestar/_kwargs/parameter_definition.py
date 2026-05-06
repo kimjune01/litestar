@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 from typing_extensions import Annotated
 
 from litestar.enums import ParamType
-from litestar.params import ParameterKwarg
+from litestar.params import DependencyKwarg, ParameterKwarg
 
 if TYPE_CHECKING:
     from litestar.typing import FieldDefinition
@@ -60,6 +60,10 @@ def create_parameter_definition(
     if field_name in path_parameters:
         field_alias = (kwarg_definition.name or field_name) if kwarg_definition is not None else field_name
         param_type = ParamType.PATH
+
+    if isinstance(field_definition.kwarg_definition, DependencyKwarg):
+        param_type = ParamType.DEPENDENCY
+        legacy_style = None
 
     return ParameterDefinition(
         param_type=param_type,

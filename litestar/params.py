@@ -191,6 +191,10 @@ class ParameterKwarg(KwargDefinition):
     If set to False, None values will be allowed. Defaults to True.
     """
 
+    @property
+    def is_marker(self) -> bool:
+        return not self.is_constrained and not self.name and self.required is None
+
     def __hash__(self) -> int:  # pragma: no cover
         """Hash the dataclass in a safe way.
 

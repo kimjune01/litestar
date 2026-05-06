@@ -248,7 +248,7 @@ class KwargsModel:
             (k, v) for k, v in field_definitions.items() if k not in ignored_keys and k in layered_parameters
         ):
             layered_parameter = layered_parameters[field_name]
-            field = field_definition if field_definition.is_parameter_field else layered_parameter
+            field = field_definition if field_definition.is_non_marker_parameter_field else layered_parameter
             default = field_definition.default if field_definition.has_default else layered_parameter.default
 
             param_definitions.add(

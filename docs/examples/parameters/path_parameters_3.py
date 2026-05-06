@@ -1,4 +1,6 @@
-from pydantic import BaseModel, Json, conint
+import dataclasses
+from typing import Any
+
 from typing_extensions import Annotated
 
 from litestar import Litestar, get
@@ -7,12 +9,17 @@ from litestar.openapi.spec.external_documentation import ExternalDocumentation
 from litestar.params import PathParameter
 
 
-class Version(BaseModel):
-    id: conint(ge=1, le=10)  # type: ignore[valid-type]
-    specs: Json
+@dataclasses.dataclass
+class Version:
+    id: int
+    specs: dict[str, Any]
+
+    def __post_init__(self) -> None:
+        if not 1 <= self.id <= 10:
+            raise ValueError()
 
 
-VERSIONS = {1: Version(id=1, specs='{"some": "value"}')}
+VERSIONS = {1: Version(id=1, specs={"some": "value"})}
 
 
 @get(path="/versions/{version:int}", sync_to_thread=False)

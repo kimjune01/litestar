@@ -6,7 +6,7 @@ from typing_extensions import Annotated
 from litestar import Controller, Litestar, MediaType, get, post
 from litestar.di import Provide
 from litestar.exceptions import ImproperlyConfiguredException
-from litestar.params import Body, Dependency, Parameter, QueryParameter
+from litestar.params import Body, Dependency, FromQuery, Parameter, QueryParameter
 from litestar.status_codes import HTTP_200_OK, HTTP_201_CREATED, HTTP_400_BAD_REQUEST, HTTP_500_INTERNAL_SERVER_ERROR
 from litestar.testing import TestClient, create_test_client
 
@@ -224,7 +224,7 @@ def test_regex_validation() -> None:
 @pytest.fixture(name="optional_no_default_client")
 def optional_no_default_client_fixture() -> Generator[TestClient, None, None]:
     @get("/optional-no-default")
-    def handle_optional(key: Optional[str]) -> Dict[str, Optional[str]]:
+    def handle_optional(key: FromQuery[Optional[str]]) -> Dict[str, Optional[str]]:
         return {"key": key}
 
     @get("/optional-annotated-no-default")
